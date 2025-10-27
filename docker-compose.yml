@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: expense_tracker_db
+    environment:
+      POSTGRES_DB: expense_tracker
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - expense_network
+
+  redis:
+    image: redis:alpine
+    container_name: expense_tracker_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - expense_network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: expense_tracker_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8081:80"
+    depends_on:
+      - postgres
+    networks:
+      - expense_network
+
+volumes:
+  postgres_data:
+
+networks:
+  expense_network:
+    driver: bridge
