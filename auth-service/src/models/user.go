@@ -1,5 +1,9 @@
 package models
 
+import (
+	"github.com/golang-jwt/jwt/v5"
+)
+
 type User struct {
 	ID           string `json:"id"`
 	Email        string `json:"email"`
@@ -22,4 +26,18 @@ type AuthResponse struct {
 	UserID  string `json:"user_id"`
 	Email   string `json:"email"`
 	Message string `json:"message"`
+}
+
+type TokenResponse struct {
+	UserID       string `json:"user_id"`
+	Email        string `json:"email"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int64  `json:"expires_in"`
+}
+
+type Claims struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	jwt.RegisteredClaims
 }

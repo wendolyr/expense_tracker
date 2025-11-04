@@ -18,6 +18,8 @@ func main() {
 
 	r.POST("/register", authHandler.Register)
 	r.POST("/login", authHandler.Login)
+	r.POST("/refresh", authHandler.Refresh)
+	r.GET("/validate", authHandler.Validate)
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "OK", "service": "auth-service"})

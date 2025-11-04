@@ -5,6 +5,7 @@ import (
 	"auth-service/src/utils"
 	"database/sql"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,11 +45,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, models.AuthResponse{
-		UserID:  userID,
-		Email:   req.Email,
-		Message: "User registered successfully",
-	})
+	tokens, err := utils.GenerateTokens(userID, req.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate tokens"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, tokens)
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -64,7 +67,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FullName)
 
 	if err == sql.ErrNoRows {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	} else if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
@@ -76,9 +79,57 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.AuthResponse{
-		UserID:  user.ID,
-		Email:   user.Email,
-		Message: "Login successful",
+	tokens, err := utils.GenerateTokens(user.ID, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate tokens"})
+		return
+	}
+
+	c.JSON(http.StatusOK, tokens)
+}
+
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	claims, err := utils.ValidateToken(req.RefreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+		return
+	}
+
+	tokens, err := utils.GenerateTokens(claims.UserID, claims.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate tokens"})
+		return
+	}
+
+	c.JSON(http.StatusOK, tokens)
+}
+
+func (h *AuthHandler) Validate(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+		return
+	}
+
+	tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
+	claims, err := utils.ValidateToken(tokenString)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": claims.UserID,
+		"email":   claims.Email,
+		"valid":   true,
 	})
 }

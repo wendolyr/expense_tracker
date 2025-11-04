@@ -14,6 +14,11 @@ services:
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - expense_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d expense_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:alpine
@@ -42,7 +47,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - expense_network
     environment:
